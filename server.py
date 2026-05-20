@@ -28,6 +28,7 @@ from mcpauthkit.auth_routes import oauth_meta_router
 from config import settings
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("sse_starlette.sse").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # ── Shared state ──────────────────────────────────────────────────────────────
