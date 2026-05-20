@@ -117,6 +117,8 @@ keycloak-realm.json # Pre-configured realm (imported automatically)
 
 ## Customising
 
+> All snippets below add to `server.py`. `current_user` is the `ContextVar` already declared near the top of that file — pass the same object to every provider so they can key stored credentials per user. See the [mcp-authkit docs](https://masterela.github.io/mcp-authkit/#setup) for a full explanation.
+
 ### Add a Confluence credentials tool
 
 ```python
