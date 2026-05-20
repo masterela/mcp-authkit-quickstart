@@ -7,6 +7,8 @@ A complete working example of [mcp-authkit](https://github.com/masterela/mcp-aut
 
 Tools exposed: `list_repos`, `get_repo`, `list_prs`, `list_issues`.
 
+> For a detailed explanation of the two-leg authentication architecture, see the **[Architecture docs](https://masterela.github.io/mcp-authkit/architecture/)**.
+
 ---
 
 ## Prerequisites
