@@ -1,4 +1,4 @@
-# mcp-authkit-quickstart
+# MCP Authentication Kit - Quick Start
 
 A complete, runnable example of [mcp-authkit](https://github.com/masterela/mcp-authkit) showing:
 
