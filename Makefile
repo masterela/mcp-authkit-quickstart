@@ -20,20 +20,25 @@ setup: ## Copy .env.example → .env (if absent) and install Python deps
 
 gen-key: ## Generate a stable Fernet encryption key and write it to .env
 	@[ -f .env ] || (echo "Run 'make setup' first"; exit 1)
-	@KEY=$$(uv run python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"); \
-	if grep -q "^STORAGE_ENCRYPTION_KEY=" .env; then \
-		sed -i "s|^STORAGE_ENCRYPTION_KEY=.*|STORAGE_ENCRYPTION_KEY=$$KEY|" .env; \
-	else \
-		echo "STORAGE_ENCRYPTION_KEY=$$KEY" >> .env; \
-	fi; \
-	echo "Encryption key written to .env (tokens will survive restarts)"
+	@uv run python3 -c "\
+import re; \
+from cryptography.fernet import Fernet; \
+key = Fernet.generate_key().decode(); \
+text = open('.env').read(); \
+pat = r'^STORAGE_ENCRYPTION_KEY=.*'; \
+replacement = 'STORAGE_ENCRYPTION_KEY=' + key; \
+text = re.sub(pat, replacement, text, flags=re.M) if re.search(pat, text, re.M) else text + '\\nSTORAGE_ENCRYPTION_KEY=' + key; \
+open('.env', 'w').write(text); \
+print('Encryption key written to .env (tokens will survive restarts)')"
 
 # ── Infrastructure ────────────────────────────────────────────────────────────
 
 up: ## Build + start all services; wait until the MCP server is ready
 	@# Copy host CA bundle so Docker can reach PyPI through corporate TLS proxies.
-	@# Creates an empty file on machines without a custom CA (harmless no-op in Dockerfile).
-	@cp /etc/ssl/certs/ca-certificates.crt .build-ca-bundle.crt 2>/dev/null || touch .build-ca-bundle.crt
+	@# Tries Linux path, then macOS path; creates empty file on Windows/other (no-op).
+	@cp /etc/ssl/certs/ca-certificates.crt .build-ca-bundle.crt 2>/dev/null || \
+	 cp /etc/ssl/cert.pem .build-ca-bundle.crt 2>/dev/null || \
+	 touch .build-ca-bundle.crt
 	docker compose up -d --build
 	@rm -f .build-ca-bundle.crt
 	@printf "Waiting for Keycloak"

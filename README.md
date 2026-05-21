@@ -110,7 +110,7 @@ make logs      Show recent logs  (filter: make logs SERVICE=server)
 make follow    Follow logs in real time  (filter: make follow SERVICE=server)
 make status    Check health of all services
 make clean     Full reset — stop containers, delete volumes and .env
-make dev       Run server locally with hot-reload (for development)
+make dev       Run server locally with hot-reload (requires make up for infra)
 ```
 
 ---
