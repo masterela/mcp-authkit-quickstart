@@ -19,14 +19,12 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "redirectUris": [
-        "http://localhost:8005/*",
-        "http://localhost:*/*",
+        "http://localhost*",
         "vscode://vscode.github-authentication/*",
         "vscode-insiders://vscode.github-authentication/*"
       ],
       "webOrigins": [
-        "http://localhost:8005",
-        "http://localhost:*"
+        "*"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",

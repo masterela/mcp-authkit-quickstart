@@ -1,17 +1,17 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup gen-key up down dev logs status clean
+.PHONY: help setup gen-key up stop down dev logs follow status clean
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} \
-	/^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	/^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 setup: ## Copy .env.example → .env (if absent) and install Python deps
 	@if [ ! -f .env ]; then \
 		cp .env.example .env; \
-		echo "Created .env — open it and fill in GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET"; \
+		echo "Created .env — open it and fill in GITHUB_OAUTH_APP_CLIENT_ID and GITHUB_OAUTH_APP_CLIENT_SECRET"; \
 	else \
 		echo ".env already exists, skipping copy"; \
 	fi
@@ -30,31 +30,54 @@ gen-key: ## Generate a stable Fernet encryption key and write it to .env
 
 # ── Infrastructure ────────────────────────────────────────────────────────────
 
-up: ## Start Keycloak + Redis; wait until Keycloak has imported the realm
-	docker compose up -d
-	@printf "Waiting for Keycloak to be ready"
+up: ## Build + start all services; wait until the MCP server is ready
+	@# Copy host CA bundle so Docker can reach PyPI through corporate TLS proxies.
+	@# Creates an empty file on machines without a custom CA (harmless no-op in Dockerfile).
+	@cp /etc/ssl/certs/ca-certificates.crt .build-ca-bundle.crt 2>/dev/null || touch .build-ca-bundle.crt
+	docker compose up -d --build
+	@rm -f .build-ca-bundle.crt
+	@printf "Waiting for Keycloak"
 	@until docker compose exec -T keycloak \
-		curl -sf http://localhost:8080/realms/mcp-quickstart > /dev/null 2>&1; do \
+		bash -c "exec 3<>/dev/tcp/127.0.0.1/8080; echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost:8080\r\nConnection: close\r\n\r\n' >&3; cat <&3 | grep -q '\"status\": \"UP\"'" \
+		> /dev/null 2>&1; do \
+		printf "."; sleep 2; \
+	done
+	@printf "\nWaiting for MCP server"
+	@until curl -sf http://localhost:8005/.well-known/oauth-authorization-server > /dev/null 2>&1; do \
 		printf "."; sleep 2; \
 	done
 	@echo ""
-	@echo "Keycloak ready  →  http://localhost:8889  (admin / admin)"
-	@echo "Redis ready     →  localhost:6379"
+	@echo "All services ready:"
+	@echo "  MCP server  →  http://localhost:8005/mcp"
+	@echo "  Keycloak    →  http://localhost:8889  (admin / admin)"
+	@echo "  Redis       →  localhost:6379"
+
+stop: ## Stop all containers without removing them (resume with: make up)
+	docker compose stop
 
 down: ## Stop and remove containers (data is preserved)
 	docker compose down
 
-# ── Development ───────────────────────────────────────────────────────────────
+# ── Development (local, hot-reload) ──────────────────────────────────────────
 
-dev: ## Run the FastMCP server with hot-reload on port 8005
-	uv run uvicorn server:app --reload --port 8005
+dev: ## Run the server locally with hot-reload (requires make up for infra)
+	uv run uvicorn main:app --reload --port 8005
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+
+logs: ## Show recent logs. Filter with: make logs SERVICE=server
+	docker compose logs --tail=200 $(SERVICE)
+
+follow: ## Follow logs in real time. Filter with: make follow SERVICE=server
+	docker compose logs -f $(SERVICE)
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 
-logs: ## Tail docker container logs
-	docker compose logs -f
-
-status: ## Print Keycloak + Redis health
+status: ## Print health of all services
+	@echo "=== MCP server ==="
+	@curl -sf http://localhost:8005/.well-known/oauth-authorization-server > /dev/null \
+		&& echo "READY  →  http://localhost:8005/mcp" \
+		|| echo "NOT READY (run: make up)"
 	@echo "=== Keycloak ==="
 	@curl -sf http://localhost:8889/realms/mcp-quickstart \
 		| python3 -c "import sys,json; d=json.load(sys.stdin); print('realm:', d['realm'], '| users can log in')" \
