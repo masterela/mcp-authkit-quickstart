@@ -1,0 +1,12 @@
+.env
+.venv/
+.git/
+__pycache__/
+*.pyc
+*.pyo
+docs/
+README.md
+Makefile
+config/keycloak-realm.json
+.gitignore
+.dockerignore

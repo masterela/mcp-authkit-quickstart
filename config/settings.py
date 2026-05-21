@@ -9,9 +9,9 @@ class Settings(BaseSettings):
     server_base_url: str = "http://localhost:8005"
     mcp_client_id: str = "mcp-quickstart-vscode"
 
-    # ── GitHub OAuth App ─────────────────────────────────────────────────────
-    github_client_id: str
-    github_client_secret: str
+    # ── GitHub OAuth App (the app YOU registered at github.com/settings/developers) ──
+    github_oauth_app_client_id: str
+    github_oauth_app_client_secret: str
 
     # ── Storage ───────────────────────────────────────────────────────────────
     token_storage_mode: str = "redis"
